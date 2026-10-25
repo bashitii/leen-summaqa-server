@@ -13,8 +13,9 @@ const schema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(20),
   // 'mock' = development-only fake gateway. 'hyperpay' = the real gateway (HyperPay COPYandPAY, see payments/hyperpay.ts).
   PAYMENT_PROVIDER: z.enum(['mock', 'hyperpay']).default('mock'),
-  // Email (all optional). Without SMTP_HOST, emails are only printed in the server console, so nothing breaks in development.
-  SMTP_HOST: z.string().optional(), SMTP_PORT: z.string().optional(), SMTP_USER: z.string().optional(), SMTP_PASS: z.string().optional(),
+  // Email (all optional). Without BREVO_API_KEY, emails are only printed in the server console, so nothing breaks in development.
+  BREVO_API_KEY: z.string().optional(),
+  BREVO_API_URL: z.string().default('https://api.brevo.com/v3/smtp/email'),   // only changed by automated tests
   EMAIL_FROM: z.string().optional(),          // e.g. Leen Summaqa <orders@leensummaqa.com>
   ADMIN_NOTIFY_EMAIL: z.string().optional(),  // who is told about new orders and contact messages
   // Anti-abuse limits per visitor (IP). The defaults suit a live shop; raise them only for automated testing.
