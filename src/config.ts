@@ -26,6 +26,9 @@ const schema = z.object({
   HYPERPAY_ACCESS_TOKEN: z.string().optional(), HYPERPAY_WEBHOOK_KEY: z.string().optional(),
   // true on the TEST server only: adds HyperPay's testMode/3DS test parameters and sends whole-number amounts (xx.00), as the test server requires.
   HYPERPAY_TEST_MODE: z.enum(['true', 'false']).default('true').transform((v) => v === 'true'),
+  // MAINTENANCE SWITCH. true = the shop is closed: visitors see a "Back soon" page and the server refuses new orders and payments.
+  // Admin (/admin) keeps working so Leen can add products. Change it in the Render dashboard (the API restarts by itself).
+  MAINTENANCE_MODE: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
   HYPERPAY_AMOUNT_DECIMALS: z.coerce.number().int().min(0).max(3).default(3),   // decimals sent to the LIVE server for JOD (confirm with HyperPay)
 }).refine((e) => !(e.NODE_ENV === 'production' && e.PAYMENT_PROVIDER === 'mock'),
   { message: 'PAYMENT_PROVIDER=mock is not allowed in production', path: ['PAYMENT_PROVIDER'] })
