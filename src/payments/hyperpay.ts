@@ -61,9 +61,12 @@ export class HyperPayProvider implements PaymentProvider {
       merchantTransactionId: o.orderId,            // our unique id; verified again when the payment comes back
       integrity: 'true',                           // HyperPay asks for this: the answer holds a hash (SRI) the browser uses to check the card-form script was not tampered with
       'customer.email': o.email, 'customer.givenName': o.address.givenName, 'customer.surname': o.address.surname,
-      'billing.street1': o.address.street, 'billing.city': o.address.city, 'billing.state': o.address.state,
+      'billing.street1': o.address.street, 'billing.city': o.address.city,
       'billing.country': o.address.country, 'billing.postcode': o.address.postcode,
     };
+    // The state/region is only sent for the US and Canada (the only places where banks require a state code).
+    // Elsewhere a free-text region such as "JORDAN" can make the card processor reject the whole payment as "invalid data".
+    if (['US', 'CA'].includes(o.address.country)) form['billing.state'] = o.address.state;
     if (env.HYPERPAY_TEST_MODE) { form.testMode = 'EXTERNAL'; form['customParameters[3DS2_enrolled]'] = 'true'; }   // test server only
     const r = await call('POST', '/v1/checkouts', form);
     if (!r?.id || !/^(000\.200|000\.000)/.test(r?.result?.code ?? '')) {
