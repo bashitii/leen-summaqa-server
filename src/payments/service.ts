@@ -6,6 +6,7 @@ import { db } from '../supabase';
 import { env } from '../config';
 import { HttpError } from '../middleware/error';
 import { getProvider } from './index';
+import { merchantRef } from './hyperpay';
 import { notifyOrderPaid } from '../email/notify';
 import type { PayAddress } from './types';
 
@@ -43,7 +44,8 @@ export async function confirmPayment(orderId: string, providerRef: string): Prom
   const { data: o } = await db.from('orders').select('total,fx_rate').eq('id', orderId).single();
   const v = await provider.verifyPayment(providerRef);
   if (v.status === 'PENDING') return 'PENDING';
-  if (v.merchantTransactionId && v.merchantTransactionId !== orderId) throw new HttpError(400, 'Payment does not belong to this order');
+  // Payments started before the switch to 16-character references carry the full order UUID, so both forms are accepted.
+  if (v.merchantTransactionId && v.merchantTransactionId !== merchantRef(orderId) && v.merchantTransactionId !== orderId) throw new HttpError(400, 'Payment does not belong to this order');
   if (v.status === 'PAID') {
     const expected = provider.expectedAmount({ total: Number(o!.total), fxRate: Number(o!.fx_rate || 1) });
     if (Math.abs(v.amount - expected) > 0.0005) {                    // paid less (or more) than the order needs: never mark it paid

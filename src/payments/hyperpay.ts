@@ -43,6 +43,15 @@ export function intlPhone(raw: string | undefined, country: string): string | un
   return /^\+\d{8,15}$/.test(d) ? d : undefined;
 }
 
+// The merchantTransactionId we send: EXACTLY 16 characters, letters and digits only (no dashes, spaces or symbols),
+// because the card processor rejects anything else. It is the first 16 hex characters of the order's UUID
+// (64 random bits, so unique per order), and the same order always gives the same value, so it can be checked on return.
+export function merchantRef(orderId: string): string {
+  const ref = orderId.replace(/[^0-9a-zA-Z]/g, '').slice(0, 16);
+  if (!/^[0-9a-zA-Z]{16}$/.test(ref)) throw new Error(`Cannot build a 16-character merchant reference from order id "${orderId}"`);
+  return ref;
+}
+
 const base = () => (env.HYPERPAY_BASE_URL ?? '').replace(/\/+$/, '');
 const auth = () => ({ Authorization: `Bearer ${env.HYPERPAY_ACCESS_TOKEN}` });
 
@@ -67,7 +76,7 @@ export class HyperPayProvider implements PaymentProvider {
   async createPayment(o: PaymentRequest) {
     const form: Record<string, string> = {
       entityId: env.HYPERPAY_ENTITY_ID!, amount: fmt(chargeAmount(o.jodAmount)), currency: 'JOD', paymentType: 'DB',
-      merchantTransactionId: o.orderId,            // our unique id; verified again when the payment comes back
+      merchantTransactionId: merchantRef(o.orderId),   // 16 letters/digits derived from the order id; verified again when the payment comes back
       integrity: 'true',                           // HyperPay asks for this: the answer holds a hash (SRI) the browser uses to check the card-form script was not tampered with
       'customer.email': o.email, 'customer.givenName': o.address.givenName, 'customer.surname': o.address.surname,
       'billing.street1': o.address.street, 'billing.city': o.address.city,
