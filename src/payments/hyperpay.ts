@@ -15,6 +15,7 @@
 // NOT IMPLEMENTED ON PURPOSE: the encrypted webhook (HYPERPAY_WEBHOOK_KEY). Verification on return + the 5-minute
 // reconcile job in service.ts already cover a customer who closes the tab after paying.
 import type { Request } from 'express';
+import { randomBytes } from 'node:crypto';
 import { env } from '../config';
 import { db } from '../supabase';
 import { HttpError } from '../middleware/error';
@@ -125,11 +126,15 @@ export class HyperPayProvider implements PaymentProvider {
       if (v.status !== 'PAID' || !v.paymentId) throw new HttpError(409, 'HyperPay has no completed payment to refund. Refund it in the HyperPay dashboard');
       id = v.paymentId; amount = v.amount; currency = v.currency;
     }
-    const form: Record<string, string> = { entityId: env.HYPERPAY_ENTITY_ID!, amount: fmt(amount), currency, paymentType: 'RF' };
+    // The refund is its OWN transaction and needs its OWN merchantTransactionId. Without one HyperPay reuses the payment's
+    // reference and its duplicate check refuses the refund (200.200.106 / 800.110.100). A fresh random value per attempt
+    // also lets a failed refund be retried. Same format rule as payments: exactly 16 letters/digits.
+    const form: Record<string, string> = { entityId: env.HYPERPAY_ENTITY_ID!, amount: fmt(amount), currency, paymentType: 'RF',
+      merchantTransactionId: randomBytes(8).toString('hex') };
     if (env.HYPERPAY_TEST_MODE) form.testMode = 'EXTERNAL';           // the refund must use the same mode as the original payment (else 700.100.600)
     const r = await call('POST', `/v1/payments/${encodeURIComponent(id)}`, form);
     if (!SUCCESS.test(r?.result?.code ?? '')) {
-      console.error('[hyperpay] refund refused:', r?.result?.code, r?.result?.description, '| sent testMode =', form.testMode ?? 'none');
+      console.error('[hyperpay] refund refused:', r?.result?.code, r?.result?.description, '| sent testMode =', form.testMode ?? 'none', '| merchantTransactionId =', form.merchantTransactionId);
       throw new HttpError(502, `HyperPay did not accept the refund (${r?.result?.code ?? 'no answer'}: ${r?.result?.description ?? ''}). You can refund it in the HyperPay dashboard`);
     }
   }
