@@ -34,6 +34,15 @@ export function chargeAmount(jod: number): number {
 }
 const fmt = (n: number) => n.toFixed(env.HYPERPAY_TEST_MODE ? 2 : Math.max(2, env.HYPERPAY_AMOUNT_DECIMALS));
 
+// "0798483680" (Jordan, local format) -> "+962798483680"; "00962..." / "+962..." stay valid; anything unusable returns undefined (field is simply not sent).
+export function intlPhone(raw: string | undefined, country: string): string | undefined {
+  let d = String(raw ?? '').replace(/[^\d+]/g, '');
+  if (d.startsWith('00')) d = '+' + d.slice(2);
+  else if (d.startsWith('0') && country === 'JO') d = '+962' + d.slice(1);
+  else if (!d.startsWith('+') && d.startsWith('962')) d = '+' + d;
+  return /^\+\d{8,15}$/.test(d) ? d : undefined;
+}
+
 const base = () => (env.HYPERPAY_BASE_URL ?? '').replace(/\/+$/, '');
 const auth = () => ({ Authorization: `Bearer ${env.HYPERPAY_ACCESS_TOKEN}` });
 
@@ -64,6 +73,9 @@ export class HyperPayProvider implements PaymentProvider {
       'billing.street1': o.address.street, 'billing.city': o.address.city,
       'billing.country': o.address.country, 'billing.postcode': o.address.postcode,
     };
+    // Phone in international format (+9627XXXXXXXX). Card processors such as CyberSource often want the customer's phone on the request.
+    const phone = intlPhone(o.phone, o.address.country);
+    if (phone) form['customer.phone'] = phone;
     // The state/region is only sent for the US and Canada (the only places where banks require a state code).
     // Elsewhere a free-text region such as "JORDAN" can make the card processor reject the whole payment as "invalid data".
     if (['US', 'CA'].includes(o.address.country)) form['billing.state'] = o.address.state;

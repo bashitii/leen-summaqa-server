@@ -5,7 +5,7 @@ import { HttpError } from '../middleware/error';
 
 export interface PayAddress { street: string; city: string; state: string; postcode: string; country: string; givenName: string; surname: string }
 // amount/currency = what the customer saw (order currency). jodAmount = the same order converted to JOD (HyperPay's account charges JOD only).
-export interface PaymentRequest { orderId: string; orderNumber: number; amount: number; currency: string; jodAmount: number; email: string; returnUrl: string; address: PayAddress }
+export interface PaymentRequest { orderId: string; orderNumber: number; amount: number; currency: string; jodAmount: number; email: string; phone?: string; returnUrl: string; address: PayAddress }
 export interface Verified { status: 'PAID' | 'FAILED' | 'PENDING'; amount: number; currency: string; paymentId?: string; merchantTransactionId?: string; raw?: unknown }
 export interface CallbackResult { eventId: string; providerRef: string; status: 'PAID' | 'FAILED'; amount: number; payload: unknown }
 

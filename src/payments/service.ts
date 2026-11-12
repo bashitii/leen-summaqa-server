@@ -21,13 +21,13 @@ function payAddress(o: any): PayAddress {
 
 // Begin (or retry) paying for an order. Returns the URL to send the customer to.
 export async function startPayment(orderId: string): Promise<string> {
-  const { data: o } = await db.from('orders').select('id,order_number,total,currency,fx_rate,email,status,payment_status,public_token,shipping_address,billing_address').eq('id', orderId).maybeSingle();
+  const { data: o } = await db.from('orders').select('id,order_number,total,currency,fx_rate,email,phone,status,payment_status,public_token,shipping_address,billing_address').eq('id', orderId).maybeSingle();
   if (!o) throw new HttpError(404, 'Order not found');
   if (o.status === 'CANCELLED') throw new HttpError(409, 'This order was cancelled. Please place a new order');
   if (o.payment_status === 'PAID') throw new HttpError(409, 'This order is already paid');
   const provider = getProvider();
   const jodAmount = Math.round((Number(o.total) / Number(o.fx_rate || 1)) * 1000) / 1000;      // JOD equivalent (orders store total in their own currency)
-  const p = await provider.createPayment({ orderId: o.id, orderNumber: o.order_number, amount: Number(o.total), currency: o.currency, jodAmount, email: o.email,
+  const p = await provider.createPayment({ orderId: o.id, orderNumber: o.order_number, amount: Number(o.total), currency: o.currency, jodAmount, email: o.email, phone: o.phone ?? undefined,
     returnUrl: `${env.CLIENT_URL}/checkout/complete?order=${o.id}&token=${o.public_token}`, address: payAddress(o) });
   const { error } = await db.from('payments').insert({ order_id: o.id, provider: provider.name, provider_ref: p.providerRef, status: 'PENDING', amount: o.total, currency: o.currency });
   if (error) throw error;
